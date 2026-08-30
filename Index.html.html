@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RIVAL LINES — Multiplayer Tetris</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0E1A;
+    --panel:#12162A;
+    --panel2:#181C33;
+    --line:#232842;
+    --text:#E8EAF6;
+    --muted:#6B7195;
+    --i:#4DD8E8;
+    --o:#F4D35E;
+    --t:#B983FF;
+    --s:#5FD87A;
+    --z:#FF5C77;
+    --j:#4C7EFF;
+    --l:#FF9F45;
+    --garbage:#4A4E63;
+    --danger:#FF5C77;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'JetBrains Mono', monospace;
+    overscroll-behavior:none;
+  }
+  .display{ font-family:'Press Start 2P', monospace; letter-spacing:0.5px; }
+  #app{
+    max-width:440px;
+    margin:0 auto;
+    min-height:100vh;
+    padding:16px 16px 28px;
+    display:flex;
+    flex-direction:column;
+  }
+  .screen{ display:flex; flex-direction:column; flex:1; }
+  .screen[hidden]{ display:none; }
+
+  /* ---- Menu ---- */
+  .brand{
+    text-align:center;
+    margin:28px 0 6px;
+  }
+  .brand .display{
+    font-size:22px;
+    line-height:1.6;
+    background:linear-gradient(90deg, var(--i), var(--t), var(--z));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .brand-sub{ color:var(--muted); font-size:12px; text-align:center; margin-bottom:36px; }
+  .piece-strip{ display:flex; justify-content:center; gap:6px; margin:18px 0 34px; }
+  .piece-strip span{ width:22px; height:22px; border-radius:4px; display:inline-block; }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .card h2{
+    font-family:'Press Start 2P', monospace;
+    font-size:12px;
+    margin:0 0 14px;
+    color:var(--text);
+  }
+  .card p.hint{ color:var(--muted); font-size:11.5px; margin:10px 0 0; line-height:1.6; }
+  button{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    letter-spacing:0.5px;
+  }
+  .btn-primary{
+    width:100%;
+    padding:14px;
+    font-size:14px;
+    background:var(--i);
+    color:#04202A;
+  }
+  .btn-primary:disabled{ opacity:0.5; }
+  .btn-primary.alt{ background:var(--o); color:#3A2A00; }
+  .row-input{ display:flex; gap:8px; }
+  .row-input input{
+    flex:1;
+    background:var(--panel2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    color:var(--text);
+    font-family:'JetBrains Mono', monospace;
+    font-size:18px;
+    letter-spacing:4px;
+    text-align:center;
+    text-transform:uppercase;
+    padding:12px;
+    min-width:0;
+  }
+  .row-input input:focus{ outline:2px solid var(--i); }
+  .error-text{ color:var(--danger); font-size:12px; min-height:16px; margin-top:10px; }
+
+  /* ---- Lobby ---- */
+  #screen-lobby{ align-items:center; justify-content:center; text-align:center; }
+  .code-box{
+    background:var(--panel2);
+    border:2px dashed var(--line);
+    border-radius:14px;
+    padding:22px 30px;
+    margin:22px 0;
+  }
+  .code-box .code{
+    font-family:'Press Start 2P', monospace;
+    font-size:34px;
+    letter-spacing:8px;
+    color:var(--o);
+  }
+  .btn-copy{
+    margin-top:14px;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:8px 16px;
+    font-size:11px;
+    border-radius:8px;
+  }
+  #lobby-status{ color:var(--muted); font-size:13px; min-height:20px; }
+  .share-note{ color:var(--muted); font-size:11px; margin-top:26px; line-height:1.7; max-width:280px; }
+
+  /* ---- Game screen ---- */
+  #screen-game{ gap:10px; }
+  .top-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:11px;
+    color:var(--muted);
+  }
+  #room-badge{
+    background:var(--panel2);
+    border:1px solid var(--line);
+    padding:5px 10px;
+    border-radius:8px;
+    font-size:11px;
+    letter-spacing:2px;
+  }
+  .stats-row{
+    display:flex;
+    gap:8px;
+  }
+  .stat{
+    flex:1;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:8px 10px;
+    text-align:center;
+  }
+  .stat .label{ font-size:9px; color:var(--muted); letter-spacing:1px; }
+  .stat .val{ font-size:16px; font-weight:700; margin-top:2px; }
+
+  .play-area{
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    justify-content:center;
+  }
+  .board-wrap{ position:relative; }
+  #main-canvas{
+    display:block;
+    border-radius:8px;
+    box-shadow:0 0 0 1px var(--line);
+  }
+  .garbage-bar{
+    position:absolute;
+    left:-14px;
+    top:0;
+    bottom:0;
+    width:8px;
+    display:flex;
+    flex-direction:column-reverse;
+    gap:2px;
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .garbage-seg{
+    flex:1;
+    background:var(--panel2);
+    border:1px solid var(--line);
+  }
+  .garbage-seg.filled{
+    background:var(--danger);
+    box-shadow:0 0 6px var(--danger);
+  }
+
+  .rival-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:8px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    min-width:96px;
+  }
+  .rival-card .name{ font-size:9px; color:var(--muted); letter-spacing:1px; }
+  #mini-canvas{ border-radius:4px; box-shadow:0 0 0 1px var(--line); }
+  .rival-card .score{ font-size:15px; font-weight:700; color:var(--z); }
+
+  .controls{
+    margin-top:auto;
+    padding-top:14px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .controls-row{ display:flex; gap:8px; }
+  .ctrl-btn{
+    flex:1;
+    background:var(--panel2);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-size:18px;
+    padding:16px 0;
+    border-radius:12px;
+    user-select:none;
+  }
+  .ctrl-btn:active{ background:var(--line); }
+  .ctrl-btn.rotate{ color:var(--t); }
+  .ctrl-btn.drop{ color:var(--z); font-size:12px; letter-spacing:1px; }
+
+  /* ---- Over screen ---- */
+  #screen-over{ align-items:center; justify-content:center; text-align:center; }
+  #over-title{
+    font-family:'Press Start 2P', monospace;
+    font-size:22px;
+    margin-bottom:14px;
+  }
+  #over-detail{ color:var(--muted); font-size:13px; margin-bottom:30px; }
+
+  @media (max-width: 380px){
+    #main-canvas{ width:210px; height:420px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <section id="screen-menu" class="screen">
+    <div class="brand">
+      <div class="display">RIVAL<br>LINES</div>
+    </div>
+    <div class="brand-sub">Live Tetris matches with a friend</div>
+    <div class="piece-strip">
+      <span style="background:#4DD8E8"></span>
+      <span style="background:#F4D35E"></span>
+      <span style="background:#B983FF"></span>
+      <span style="background:#5FD87A"></span>
+      <span style="background:#FF5C77"></span>
+      <span style="background:#4C7EFF"></span>
+      <span style="background:#FF9F45"></span>
+    </div>
+
+    <div class="card">
+      <h2>Start a room</h2>
+      <button id="create-btn" class="btn-primary">CREATE ROOM</button>
+      <p class="hint">Get a 4-letter code and send it to a friend.</p>
+    </div>
+
+    <div class="card">
+      <h2>Have a code?</h2>
+      <div class="row-input">
+        <input id="join-input" maxlength="4" placeholder="CODE" autocapitalize="characters" autocomplete="off" />
+        <button id="join-btn" class="btn-primary alt" style="width:auto; padding:0 18px;">JOIN</button>
+      </div>
+    </div>
+    <div id="menu-error" class="error-text"></div>
+  </section>
+
+  <section id="screen-lobby" class="screen" hidden>
+    <div class="display" style="font-size:13px; color:var(--muted);">ROOM CODE</div>
+    <div class="code-box">
+      <div id="lobby-code" class="code">----</div>
+      <button id="copy-btn" class="btn-copy">COPY</button>
+    </div>
+    <div id="lobby-status">Waiting...</div>
+    <div class="share-note">Matches sync every couple of seconds, not instantly. Anyone with this code can join the room.</div>
+  </section>
+
+  <section id="screen-game" class="screen" hidden>
+    <div class="top-bar">
+      <span id="room-badge">ROOM ----</span>
+      <span id="rival-name">RIVAL</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat"><div class="label">SCORE</div><div class="val" id="score-val">0</div></div>
+      <div class="stat"><div class="label">LINES</div><div class="val" id="lines-val">0</div></div>
+      <div class="stat"><div class="label">LEVEL</div><div class="val" id="level-val">1</div></div>
+    </div>
+
+    <div class="play-area">
+      <div class="board-wrap">
+        <div class="garbage-bar" id="garbage-bar"></div>
+        <canvas id="main-canvas"></canvas>
+      </div>
+      <div class="rival-card">
+        <div class="name" id="rival-name-mini">RIVAL</div>
+        <canvas id="mini-canvas"></canvas>
+        <div class="score" id="rival-score-val">0</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <button class="ctrl-btn" id="btn-left">◀</button>
+        <button class="ctrl-btn rotate" id="btn-rotate">⟳</button>
+        <button class="ctrl-btn" id="btn-right">▶</button>
+      </div>
+      <div class="controls-row">
+        <button class="ctrl-btn" id="btn-down">▼</button>
+        <button class="ctrl-btn drop" id="btn-drop">HARD DROP</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-over" class="screen" hidden>
+    <div id="over-title" class="display">GAME OVER</div>
+    <div id="over-detail">—</div>
+    <button id="over-restart" class="btn-primary" style="max-width:220px;">BACK TO MENU</button>
+  </section>
+
+</div>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWUEXhb9ieJf7_HCZnRfPbNh6oQpnbNnY",
+    authDomain: "rival-lines-8c77b.firebaseapp.com",
+    databaseURL: "https://rival-lines-8c77b-default-rtdb.firebaseio.com",
+    projectId: "rival-lines-8c77b",
+    storageBucket: "rival-lines-8c77b.firebasestorage.app",
+    messagingSenderId: "264906097988",
+    appId: "1:264906097988:web:a9eb303e27c66b3ee00311"
+  };
+  firebase.initializeApp(firebaseConfig);
+</script>
+<script>
+'use strict';
+
+/* ===== Constants ===== */
+const COLS = 10, ROWS = 20;
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const PIECE_COLORS = { I:'#4DD8E8', O:'#F4D35E', T:'#B983FF', S:'#5FD87A', Z:'#FF5C77', J:'#4C7EFF', L:'#FF9F45', G:'#4A4E63' };
+const SHAPES = {
+  I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+  O: [[0,1,1,0],[0,1,1,0],[0,0,0,0],[0,0,0,0]],
+  T: [[0,1,0,0],[1,1,1,0],[0,0,0,0],[0,0,0,0]],
+  S: [[0,1,1,0],[1,1,0,0],[0,0,0,0],[0,0,0,0]],
+  Z: [[1,1,0,0],[0,1,1,0],[0,0,0,0],[0,0,0,0]],
+  J: [[1,0,0,0],[1,1,1,0],[0,0,0,0],[0,0,0,0]],
+  L: [[0,0,1,0],[1,1,1,0],[0,0,0,0],[0,0,0,0]]
+};
+const TYPES = Object.keys(SHAPES);
+
+/* ===== Utility ===== */
+function genRoomCode(){
+  let s='';
+  for(let i=0;i<4;i++) s += CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];
+  return s;
+}
+function rotateMatrix(m){
+  const n = m.length, res = Array.from({length:n},()=>Array(n).fill(0));
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++) res[c][n-1-r] = m[r][c];
+  return res;
+}
+function emptyBoard(){
+  return Array.from({length:ROWS},()=>Array(COLS).fill(null));
+}
+function encodeBoard(board){
+  return board.map(row => row.map(c => c===null ? '.' : c).join('')).join('/');
+}
+function decodeBoard(str){
+  if(!str) return emptyBoard();
+  return str.split('/').map(row => row.split('').map(ch => ch==='.' ? null : ch));
+}
+function debounce(fn, wait){
+  let t=null, pending=false;
+  return function(...args){
+    if(t){ pending=true; return; }
+    fn.apply(null,args);
+    t=setTimeout(()=>{ t=null; if(pending){ pending=false; fn.apply(null,args); } }, wait);
+  };
+}
+
+/* ===== Game class (one per local player) ===== */
+class TetrisGame {
+  constructor(canvas, cell){
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.cell = cell;
+    this.reset();
+  }
+  reset(){
+    this.board = emptyBoard();
+    this.score = 0;
+    this.lines = 0;
+    this.level = 1;
+    this.gameOver = false;
+    this.pendingGarbage = 0;
+    this.piece = null;
+    this.bag = [];
+    this.spawnPiece();
+  }
+  nextFromBag(){
+    if(this.bag.length===0){
+      this.bag = TYPES.slice();
+      for(let i=this.bag.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [this.bag[i],this.bag[j]] = [this.bag[j],this.bag[i]];
+      }
+    }
+    return this.bag.pop();
+  }
+  spawnPiece(){
+    const type = this.nextFromBag();
+    const matrix = SHAPES[type].map(r=>r.slice());
+    const piece = { type, matrix, x: 3, y: 0 };
+    if(this.collides(piece.matrix, piece.x, piece.y)){
+      this.gameOver = true;
+      this.piece = piece;
+      return;
+    }
+    this.piece = piece;
+  }
+  collides(matrix, px, py){
+    for(let r=0;r<matrix.length;r++){
+      for(let c=0;c<matrix[r].length;c++){
+        if(!matrix[r][c]) continue;
+        const bx = px+c, by = py+r;
+        if(bx<0 || bx>=COLS || by>=ROWS) return true;
+        if(by>=0 && this.board[by][bx]!==null) return true;
+      }
+    }
+    return false;
+  }
+  move(dx){
+    if(this.gameOver) return;
+    const p = this.piece;
+    if(!this.collides(p.matrix, p.x+dx, p.y)) p.x += dx;
+  }
+  rotate(){
+    if(this.gameOver) return;
+    const p = this.piece;
+    if(p.type==='O') return;
+    const rotated = rotateMatrix(p.matrix);
+    const kicks = [0,-1,1,-2,2];
+    for(const k of kicks){
+      if(!this.collides(rotated, p.x+k, p.y)){
+        p.matrix = rotated;
+        p.x += k;
+        return;
+      }
+    }
+  }
+  softDrop(){
+    if(this.gameOver) return { locked:false };
+    const p = this.piece;
+    if(!this.collides(p.matrix, p.x, p.y+1)){
+      p.y += 1;
+      this.score += 1;
+      return { locked:false };
+    } else {
+      const result = this.lock();
+      return { locked:true, result };
+    }
+  }
+  hardDrop(){
+    if(this.gameOver) return { locked:false };
+    const p = this.piece;
+    let dist = 0;
+    while(!this.collides(p.matrix, p.x, p.y+1)){ p.y+=1; dist++; }
+    this.score += dist*2;
+    const result = this.lock();
+    return { locked:true, result };
+  }
+  lock(){
+    const p = this.piece;
+    for(let r=0;r<p.matrix.length;r++){
+      for(let c=0;c<p.matrix[r].length;c++){
+        if(!p.matrix[r][c]) continue;
+        const bx=p.x+c, by=p.y+r;
+        if(by<0){ this.gameOver = true; continue; }
+        this.board[by][bx] = p.type;
+      }
+    }
+    if(this.gameOver){ this.piece=null; return { cleared:0, attack:0 }; }
+    const cleared = this.clearLines();
+    const attackMap = [0,0,1,2,4];
+    const attack = attackMap[cleared] || 0;
+    const scoreMap = [0,100,300,500,800];
+    this.score += (scoreMap[cleared]||0) * this.level;
+    this.lines += cleared;
+    this.level = Math.floor(this.lines/10)+1;
+    if(this.pendingGarbage>0){
+      this.insertGarbage(this.pendingGarbage);
+      this.pendingGarbage = 0;
+    }
+    if(!this.gameOver) this.spawnPiece();
+    return { cleared, attack };
+  }
+  clearLines(){
+    let cleared = 0;
+    this.board = this.board.filter(row => {
+      const full = row.every(c => c!==null);
+      if(full) cleared++;
+      return !full;
+    });
+    while(this.board.length < ROWS) this.board.unshift(Array(COLS).fill(null));
+    return cleared;
+  }
+  insertGarbage(n){
+    if(n<=0) return;
+    const discarded = this.board.slice(0,n);
+    const hadContent = discarded.some(row=>row.some(c=>c!==null));
+    const rest = this.board.slice(n);
+    const garbageRows = [];
+    for(let i=0;i<n;i++){
+      const gap = Math.floor(Math.random()*COLS);
+      const row = Array(COLS).fill('G');
+      row[gap] = null;
+      garbageRows.push(row);
+    }
+    this.board = rest.concat(garbageRows);
+    if(hadContent) this.gameOver = true;
+  }
+  ghostY(){
+    const p = this.piece;
+    let y = p.y;
+    while(!this.collides(p.matrix, p.x, y+1)) y++;
+    return y;
+  }
+  draw(){
+    const ctx = this.ctx, cell = this.cell;
+    ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+    ctx.fillStyle = '#12162A';
+    ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+    ctx.strokeStyle = '#232842';
+    ctx.lineWidth = 1;
+    for(let c=1;c<COLS;c++){
+      ctx.beginPath(); ctx.moveTo(c*cell+0.5,0); ctx.lineTo(c*cell+0.5,ROWS*cell); ctx.stroke();
+    }
+    for(let r=1;r<ROWS;r++){
+      ctx.beginPath(); ctx.moveTo(0,r*cell+0.5); ctx.lineTo(COLS*cell,r*cell+0.5); ctx.stroke();
+    }
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const v = this.board[r][c];
+        if(v) this.drawCell(c,r,PIECE_COLORS[v]||'#888');
+      }
+    }
+    if(this.piece && !this.gameOver){
+      const gy = this.ghostY();
+      const p = this.piece;
+      for(let r=0;r<p.matrix.length;r++){
+        for(let c=0;c<p.matrix[r].length;c++){
+          if(!p.matrix[r][c]) continue;
+          this.drawCell(p.x+c, gy+r, PIECE_COLORS[p.type], true);
+        }
+      }
+      for(let r=0;r<p.matrix.length;r++){
+        for(let c=0;c<p.matrix[r].length;c++){
+          if(!p.matrix[r][c]) continue;
+          this.drawCell(p.x+c, p.y+r, PIECE_COLORS[p.type]);
+        }
+      }
+    }
+  }
+  drawCell(c,r,color,ghost){
+    if(r<0) return;
+    const ctx = this.ctx, cell = this.cell;
+    const x=c*cell, y=r*cell;
+    if(ghost){
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x+2,y+2,cell-4,cell-4);
+      ctx.globalAlpha = 1;
+      return;
+    }
+    ctx.fillStyle = color;
+    ctx.fillRect(x+1,y+1,cell-2,cell-2);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x+1,y+1,cell-2,Math.max(2,cell*0.2));
+  }
+}
+
+/* ===== Mini board renderer (opponent preview, non-interactive) ===== */
+function drawMiniBoard(canvas, board, cell){
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = '#12162A';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const v = board[r][c];
+      if(v){
+        ctx.fillStyle = PIECE_COLORS[v] || '#888';
+        ctx.fillRect(c*cell, r*cell, cell-1, cell-1);
+      }
+    }
+  }
+}
+
+window.TetrisCore = { COLS, ROWS, encodeBoard, decodeBoard, genRoomCode, emptyBoard, debounce, TetrisGame, drawMiniBoard, PIECE_COLORS };
+
+</script>
+<script>
+'use strict';
+(function(){
+const { COLS, ROWS, encodeBoard, decodeBoard, genRoomCode, emptyBoard, debounce, TetrisGame, drawMiniBoard, PIECE_COLORS } = window.TetrisCore;
+
+const CELL_MAIN = 24;
+const CELL_MINI = 8;
+const POLL_MS = 1500;
+
+const screens = {
+  menu: document.getElementById('screen-menu'),
+  lobby: document.getElementById('screen-lobby'),
+  game: document.getElementById('screen-game'),
+  over: document.getElementById('screen-over'),
+};
+function showScreen(name){
+  Object.values(screens).forEach(s=>s.hidden = true);
+  screens[name].hidden = false;
+}
+
+const el = {
+  createBtn: document.getElementById('create-btn'),
+  joinBtn: document.getElementById('join-btn'),
+  joinInput: document.getElementById('join-input'),
+  menuError: document.getElementById('menu-error'),
+  lobbyCode: document.getElementById('lobby-code'),
+  lobbyStatus: document.getElementById('lobby-status'),
+  copyBtn: document.getElementById('copy-btn'),
+  mainCanvas: document.getElementById('main-canvas'),
+  miniCanvas: document.getElementById('mini-canvas'),
+  scoreEl: document.getElementById('score-val'),
+  linesEl: document.getElementById('lines-val'),
+  levelEl: document.getElementById('level-val'),
+  rivalScoreEl: document.getElementById('rival-score-val'),
+  rivalName: document.getElementById('rival-name'),
+  garbageBar: document.getElementById('garbage-bar'),
+  overTitle: document.getElementById('over-title'),
+  overDetail: document.getElementById('over-detail'),
+  overBtn: document.getElementById('over-restart'),
+  roomBadge: document.getElementById('room-badge'),
+  btnLeft: document.getElementById('btn-left'),
+  btnRight: document.getElementById('btn-right'),
+  btnRotate: document.getElementById('btn-rotate'),
+  btnDown: document.getElementById('btn-down'),
+  btnDrop: document.getElementById('btn-drop'),
+};
+
+el.mainCanvas.width = COLS*CELL_MAIN;
+el.mainCanvas.height = ROWS*CELL_MAIN;
+el.miniCanvas.width = COLS*CELL_MINI;
+el.miniCanvas.height = ROWS*CELL_MINI;
+
+let roomCode = null;
+let slot = null; // 'A' or 'B'
+let oppSlot = null;
+let game = null;
+let dropTimer = null;
+let pollTimer = null;
+let endPollTimer = null;
+let lastAttackId = 0;
+let attackIdCounter = 1;
+let attackLog = [];
+let matchEnded = false;
+let rafId = null;
+
+function stateKey(sl){ return `rooms/${roomCode}/${sl}`; }
+function metaKey(){ return `rooms/${roomCode}/meta`; }
+
+const fbDb = firebase.database();
+
+async function storageGet(path){
+  try{
+    const snap = await fbDb.ref(path).once('value');
+    return snap.exists() ? snap.val() : null;
+  }catch(e){
+    console.error('Firebase read failed', e);
+    return null;
+  }
+}
+async function storageSet(path, value){
+  try{
+    await fbDb.ref(path).set(value);
+  }catch(e){ console.error('Firebase write failed', e); /* ignore transient failures */ }
+}
+
+/* ===== Menu ===== */
+el.createBtn.addEventListener('click', async ()=>{
+  el.menuError.textContent = '';
+  el.createBtn.disabled = true;
+  try{
+    let code, meta = null, tries = 0;
+    do{
+      code = genRoomCode();
+      meta = await storageGet(`rooms/${code}/meta`);
+      tries++;
+    } while(meta && tries < 5);
+    roomCode = code;
+    slot = 'A'; oppSlot = 'B';
+    await storageSet(metaKey(), {status:'waiting', aPresent:true, bPresent:false, createdAt:Date.now()});
+    enterLobby(true);
+  }catch(e){
+    el.menuError.textContent = "Couldn't create a room. Check your connection and try again.";
+  }
+  el.createBtn.disabled = false;
+});
+
+el.joinBtn.addEventListener('click', async ()=>{
+  el.menuError.textContent = '';
+  const code = (el.joinInput.value || '').trim().toUpperCase();
+  if(code.length !== 4){
+    el.menuError.textContent = 'Room codes are 4 letters. Double-check and try again.';
+    return;
+  }
+  el.joinBtn.disabled = true;
+  try{
+    const meta = await storageGet(`rooms/${code}/meta`);
+    if(!meta){
+      el.menuError.textContent = "That room code doesn't exist. Check it and try again.";
+      el.joinBtn.disabled = false;
+      return;
+    }
+    if(meta.bPresent){
+      el.menuError.textContent = 'That room already has two players.';
+      el.joinBtn.disabled = false;
+      return;
+    }
+    roomCode = code;
+    slot = 'B'; oppSlot = 'A';
+    meta.bPresent = true;
+    meta.status = 'playing';
+    await storageSet(`rooms/${code}/meta`, meta);
+    enterLobby(false);
+  }catch(e){
+    el.menuError.textContent = "Couldn't join that room. Check your connection and try again.";
+  }
+  el.joinBtn.disabled = false;
+});
+
+el.copyBtn.addEventListener('click', ()=>{
+  if(navigator.clipboard && roomCode){
+    navigator.clipboard.writeText(roomCode).then(()=>{
+      el.copyBtn.textContent = 'COPIED';
+      setTimeout(()=> el.copyBtn.textContent = 'COPY', 1200);
+    }).catch(()=>{});
+  }
+});
+
+/* ===== Lobby ===== */
+let lobbyPoll = null;
+function enterLobby(isCreator){
+  showScreen('lobby');
+  el.lobbyCode.textContent = roomCode;
+  el.lobbyStatus.textContent = isCreator
+    ? 'Waiting for a challenger to join...'
+    : 'Joined! Waiting for the match to start...';
+  if(isCreator){
+    lobbyPoll = setInterval(async ()=>{
+      const meta = await storageGet(metaKey());
+      if(!meta) return;
+      if(meta.bPresent){
+        clearInterval(lobbyPoll);
+        startCountdown();
+      }
+    }, 1200);
+  } else {
+    startCountdown();
+  }
+}
+
+function startCountdown(){
+  let n = 3;
+  el.lobbyStatus.textContent = `Match starts in ${n}...`;
+  const t = setInterval(()=>{
+    n--;
+    if(n<=0){
+      clearInterval(t);
+      startMatch();
+    } else {
+      el.lobbyStatus.textContent = `Match starts in ${n}...`;
+    }
+  }, 700);
+}
+
+/* ===== Match ===== */
+function startMatch(){
+  matchEnded = false;
+  lastAttackId = 0;
+  attackIdCounter = 1;
+  attackLog = [];
+  el.roomBadge.textContent = `ROOM ${roomCode}`;
+  el.rivalName.textContent = oppSlot === 'A' ? 'RIVAL (HOST)' : 'RIVAL';
+  showScreen('game');
+  game = new TetrisGame(el.mainCanvas, CELL_MAIN);
+  updateHud();
+  setGarbageBar(0);
+  runDropTimer();
+  renderLoop();
+  pollOpponent();
+  pollTimer = setInterval(pollOpponent, POLL_MS);
+  pushState();
+}
+
+function runDropTimer(){
+  if(dropTimer) clearInterval(dropTimer);
+  const interval = Math.max(120, 800 - (game.level-1)*60);
+  dropTimer = setInterval(()=>{
+    if(!game || game.gameOver || matchEnded) return;
+    const prevLevel = game.level;
+    const outcome = game.softDrop();
+    if(outcome.locked) afterLock(outcome.result);
+    handlePostAction(prevLevel);
+  }, interval);
+}
+
+function handlePostAction(prevLevel){
+  if(!game) return;
+  updateHud();
+  if(game.level !== prevLevel) runDropTimer();
+}
+
+function renderLoop(){
+  if(game) game.draw();
+  rafId = requestAnimationFrame(renderLoop);
+}
+
+const pushState = debounce(async ()=>{
+  if(!game) return;
+  const payload = {
+    board: encodeBoard(game.board),
+    score: game.score,
+    lines: game.lines,
+    level: game.level,
+    alive: !game.gameOver,
+    gameOver: game.gameOver,
+    attackLog: attackLog.slice(-20),
+    ts: Date.now()
+  };
+  await storageSet(stateKey(slot), payload);
+}, 350);
+
+function afterLock(result){
+  if(result && result.attack > 0){
+    attackLog.push({ id: attackIdCounter++, n: result.attack });
+  }
+  updateHud();
+  pushState();
+  if(game.gameOver) onLocalGameOver();
+}
+
+async function pollOpponent(){
+  const opp = await storageGet(stateKey(oppSlot));
+  if(!opp) return;
+  drawMiniBoard(el.miniCanvas, decodeBoard(opp.board), CELL_MINI);
+  el.rivalScoreEl.textContent = opp.score ?? 0;
+
+  if(Array.isArray(opp.attackLog) && game && !game.gameOver){
+    let added = 0;
+    for(const atk of opp.attackLog){
+      if(atk.id > lastAttackId){
+        added += atk.n;
+        lastAttackId = Math.max(lastAttackId, atk.id);
+      }
+    }
+    if(added>0){
+      game.pendingGarbage += added;
+      setGarbageBar(game.pendingGarbage);
+    }
+  }
+
+  if(opp.gameOver && !matchEnded){
+    if(game && !game.gameOver){
+      endMatch(true, game.score, opp.score);
+    } else if(game && game.gameOver){
+      endMatch(game.score > opp.score, game.score, opp.score, game.score===opp.score);
+    }
+  }
+}
+
+function onLocalGameOver(){
+  if(dropTimer) clearInterval(dropTimer);
+  pushState();
+  if(!matchEnded){
+    // Wait to see if opponent has already topped out or does so shortly after.
+    endPollTimer = setInterval(async ()=>{
+      const opp = await storageGet(stateKey(oppSlot));
+      if(!opp) return;
+      if(opp.gameOver && !matchEnded){
+        clearInterval(endPollTimer);
+        endMatch(game.score > opp.score, game.score, opp.score, game.score===opp.score);
+      }
+    }, POLL_MS);
+  }
+}
+
+function setGarbageBar(n){
+  const capped = Math.min(n, 8);
+  el.garbageBar.innerHTML = '';
+  for(let i=0;i<8;i++){
+    const seg = document.createElement('div');
+    seg.className = 'garbage-seg' + (i < capped ? ' filled' : '');
+    el.garbageBar.appendChild(seg);
+  }
+}
+
+function updateHud(){
+  el.scoreEl.textContent = game.score;
+  el.linesEl.textContent = game.lines;
+  el.levelEl.textContent = game.level;
+  setGarbageBar(game.pendingGarbage);
+}
+
+function endMatch(won, myScore, oppScore, draw){
+  matchEnded = true;
+  if(dropTimer) clearInterval(dropTimer);
+  if(pollTimer) clearInterval(pollTimer);
+  if(endPollTimer) clearInterval(endPollTimer);
+  if(rafId) cancelAnimationFrame(rafId);
+  showScreen('over');
+  if(draw){
+    el.overTitle.textContent = 'DRAW MATCH';
+    el.overDetail.textContent = `Both boards topped out. ${myScore} to ${oppScore}.`;
+  } else if(won){
+    el.overTitle.textContent = 'YOU WIN';
+    el.overDetail.textContent = `Final score ${myScore} — rival scored ${oppScore}.`;
+  } else {
+    el.overTitle.textContent = 'RIVAL WINS';
+    el.overDetail.textContent = `Final score ${myScore} — rival scored ${oppScore}.`;
+  }
+}
+
+el.overBtn.addEventListener('click', ()=>{
+  roomCode = null; slot = null; oppSlot = null; game = null;
+  el.joinInput.value = '';
+  showScreen('menu');
+});
+
+/* ===== Input ===== */
+function doAction(fn){
+  if(!game || game.gameOver || matchEnded) return;
+  const prevLevel = game.level;
+  fn();
+  handlePostAction(prevLevel);
+}
+function performSoftDrop(){
+  if(!game || game.gameOver || matchEnded) return;
+  const prevLevel = game.level;
+  const outcome = game.softDrop();
+  if(outcome.locked) afterLock(outcome.result);
+  handlePostAction(prevLevel);
+}
+function performHardDrop(){
+  if(!game || game.gameOver || matchEnded) return;
+  const prevLevel = game.level;
+  const outcome = game.hardDrop();
+  if(outcome.locked) afterLock(outcome.result);
+  handlePostAction(prevLevel);
+}
+
+document.addEventListener('keydown', (e)=>{
+  if(!game || game.gameOver || matchEnded) return;
+  switch(e.key){
+    case 'ArrowLeft': doAction(()=>game.move(-1)); break;
+    case 'ArrowRight': doAction(()=>game.move(1)); break;
+    case 'ArrowUp': case 'x': case 'X': doAction(()=>game.rotate()); break;
+    case 'ArrowDown': performSoftDrop(); break;
+    case ' ': e.preventDefault(); performHardDrop(); break;
+  }
+});
+
+function bindRepeat(button, fn){
+  let interval = null;
+  const start = (ev)=>{
+    ev.preventDefault();
+    fn();
+    interval = setInterval(fn, 140);
+  };
+  const stop = ()=>{ if(interval){ clearInterval(interval); interval=null; } };
+  button.addEventListener('pointerdown', start);
+  button.addEventListener('pointerup', stop);
+  button.addEventListener('pointerleave', stop);
+  button.addEventListener('pointercancel', stop);
+}
+
+bindRepeat(el.btnLeft, ()=> doAction(()=>game && game.move(-1)));
+bindRepeat(el.btnRight, ()=> doAction(()=>game && game.move(1)));
+bindRepeat(el.btnDown, performSoftDrop);
+el.btnRotate.addEventListener('pointerdown', (ev)=>{ ev.preventDefault(); doAction(()=>game && game.rotate()); });
+el.btnDrop.addEventListener('pointerdown', (ev)=>{ ev.preventDefault(); performHardDrop(); });
+
+showScreen('menu');
+})();
+
+</script>
+</body>
+</html>
